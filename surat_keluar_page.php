@@ -4,6 +4,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login_page.php");
     exit();
 }
+
 // Koneksi Database
 $servername = "localhost";
 $username = "root";
@@ -20,11 +21,11 @@ define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5 MB dalam bytes
 
 
 if(isset($_POST['action'])) {
-    $nomor = $conn->real_escape_string($_POST['nomor']);
+    $kode_kelas = $conn->real_escape_string($_POST['kode_kelas']);
     $tanggal = $conn->real_escape_string($_POST['tanggal']);
-    $dari = $conn->real_escape_string($_POST['dari']);
-    $isi_ringkas = $conn->real_escape_string($_POST['isi_ringkas']);
-    $tanggal_arsip = $conn->real_escape_string($_POST['tanggal_arsip']);
+    $no_urut = $conn->real_escape_string($_POST['no_urut']);
+    $perihal = $conn->real_escape_string($_POST['perihal']);
+    $tujuan_surat = $conn->real_escape_string($_POST['tujuan_surat']);
     $tahun = intval($_POST['tahun']);
 
  // Proses upload file
@@ -61,16 +62,16 @@ if(isset($_FILES['file_dokumen']) && $_FILES['file_dokumen']['error'] == 0) {
     }
 }
 
-// Query SQL untuk menyimpan nama file
-$sql = "INSERT INTO data_surat_masuk (nomor, tanggal, dari, isi_ringkas, tanggal_arsip, tahun, file_dokumen) VALUES ('$nomor', '$tanggal', '$dari', '$isi_ringkas', '$tanggal_arsip', $tahun, '$file_dokumen')";
+//Query SQL untuk menyimpan nama file
+$sql = "INSERT INTO data_surat_keluar (kode_kelas, tanggal, no_urut, perihal, tujuan_surat, tahun, file_dokumen) VALUES ('$kode_kelas', '$tanggal', '$no_urut', '$perihal', '$tujuan_surat', $tahun, '$file_dokumen')";
 if($_POST['action'] == 'tambah') {
-    $sql = "INSERT INTO data_surat_masuk (nomor, tanggal, dari, isi_ringkas, tanggal_arsip, tahun, file_dokumen) VALUES ('$nomor', '$tanggal', '$dari', '$isi_ringkas', '$tanggal_arsip', $tahun, '$file_dokumen')";
+    $sql = "INSERT INTO data_surat_keluar (kode_kelas, tanggal, no_urut, perihal, tujuan_surat, tahun, file_dokumen) VALUES ('$kode_kelas', '$tanggal', '$no_urut', '$perihal', '$tujuan_surat', $tahun, '$file_dokumen')";
 } elseif($_POST['action'] == 'edit') {
     $id = $conn->real_escape_string($_POST['id']);
     if ($file_dokumen) {
-        $sql = "UPDATE data_surat_masuk SET nomor='$nomor', tanggal='$tanggal', dari='$dari', isi_ringkas='$isi_ringkas', tanggal_arsip='$tanggal_arsip', tahun=$tahun, file_dokumen='$file_dokumen' WHERE id=$id";
+        $sql = "UPDATE data_surat_keluar SET kode_kelas='$kode_kelas', tanggal='$tanggal', no_urut='$no_urut', perihal='$perihal', tujuan_surat='$tujuan_surat', tahun=$tahun, file_dokumen='$file_dokumen' WHERE id=$id";
     } else {
-        $sql = "UPDATE data_surat_masuk SET nomor='$nomor', tanggal='$tanggal', dari='$dari', isi_ringkas='$isi_ringkas', tanggal_arsip='$tanggal_arsip', tahun=$tahun WHERE id=$id";
+        $sql = "UPDATE data_surat_keluar SET kode_kelas='$kode_kelas', tanggal='$tanggal', no_urut='$no_urut', perihal='$perihal', tujuan_surat='$tujuan_surat', tahun=$tahun WHERE id=$id";
     }
 }
 
@@ -84,7 +85,7 @@ exit;
 
 if(isset($_GET['hapus'])) {
     $id = $conn->real_escape_string($_GET['hapus']);
-    $sql = "DELETE FROM data_surat_masuk WHERE id=$id";
+    $sql = "DELETE FROM data_surat_keluar WHERE id=$id";
     $conn->query($sql);
 }
 
@@ -95,12 +96,12 @@ $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
 $start = ($page - 1) * $limit;
 $tahun = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
 
-$sql = "SELECT * FROM data_surat_masuk WHERE 
-        (nomor LIKE '%$search%' OR 
+$sql = "SELECT * FROM data_surat_keluar WHERE 
+        (kode_kelas LIKE '%$search%' OR 
         tanggal LIKE '%$search%' OR 
-        dari LIKE '%$search%' OR 
-        isi_ringkas LIKE '%$search%' OR 
-        tanggal_arsip LIKE '%$search%') AND
+        no_urut LIKE '%$search%' OR 
+        perihal LIKE '%$search%' OR 
+        tujuan_surat LIKE '%$search%') AND
         tahun = $tahun";
 
 // Hitung total data untuk pagination
@@ -514,6 +515,7 @@ $result = $conn->query($sql);
             margin: 20px auto 0;
         }
 
+
     </style>
 
 <script>
@@ -536,8 +538,8 @@ function validateFileSize(input) {
                     <li><a href="dashboard_umum.php"><i class="icon-dashboard"></i> Beranda</a></li>
                     <li><a href="spt_page.php"><i class="icon-spt"></i> Data SPT</a></li>
                     <li><a href="nota_dinas_page.php"><i class="icon-nota-dinas"></i> Data Nota Dinas</a></li>
-                    <li class="active"><a href="surat_masuk_page.php"><i class="icon-surat-masuk"></i> Surat Masuk</a></li>
-                    <li><a href="surat_keluar_page.php"><i class="icon-surat-keluar"></i> Surat Keluar</a></li>
+                    <li><a href="surat_masuk_page.php"><i class="icon-surat-masuk"></i> Surat Masuk</a></li>
+                    <li class="active"><a href="surat_keluar_page.php"><i class="icon-surat-keluar"></i> Surat Keluar</a></li>
                 </ul>
             </nav>
         </div>
@@ -554,7 +556,7 @@ function validateFileSize(input) {
     </aside>
     
     <main class="main-content">
-        <h1>Data Surat Masuk</h1>
+        <h1>Data Surat Keluar</h1>
         
 <div class="data-controls">
     <div>
@@ -586,11 +588,11 @@ function validateFileSize(input) {
             <thead>
                 <tr>
                     <th>No.</th>
-                    <th>Nomor</th>
-                    <th>Tanggal</th>
-                    <th>Dari</th>
-                    <th>Isi Ringkas</th>
-                    <th>Tanggal Arsip</th>
+                    <th>Kode Kelas</th>
+                    <th>Tanggal Surat</th>
+                    <th>No. Urut</th>
+                    <th>Perihal</th>
+                    <th>Tujuan Surat</th>
                     <th>Opsi</th>
                 </tr>
             </thead>
@@ -601,13 +603,13 @@ function validateFileSize(input) {
                     while($row = $result->fetch_assoc()) {
                         echo "<tr>
                         <td>".$no."</td>
-                        <td>".$row["nomor"]."</td>
+                        <td>".$row["kode_kelas"]."</td>
                         <td>".$row["tanggal"]."</td>
-                        <td>".$row["dari"]."</td>
-                        <td>".$row["isi_ringkas"]."</td>
-                        <td>".$row["tanggal_arsip"]."</td>
+                        <td>".$row["no_urut"]."</td>
+                        <td>".$row["perihal"]."</td>
+                        <td>".$row["tujuan_surat"]."</td>
                         <td class='opsi'>
-                            <a href='#' class='edit-btn' data-id='".$row["id"]."' data-nomor='".$row["nomor"]."' data-tanggal='".$row["tanggal"]."' data-dari='".$row["dari"]."' data-isi_ringkas='".$row["isi_ringkas"]."' data-tanggal_arsip='".$row["tanggal_arsip"]."' data-file_dokumen='".$row["file_dokumen"]."'>✏️</a>
+                            <a href='#' class='edit-btn' data-id='".$row["id"]."' data-kode_kelas='".$row["kode_kelas"]."' data-tanggal='".$row["tanggal"]."' data-no_urut='".$row["no_urut"]."' data-perihal='".$row["perihal"]."' data-tujuan_surat='".$row["tujuan_surat"]."' data-file_dokumen='".$row["file_dokumen"]."'>✏️</a>
                             <a href='#' class='delete-btn' data-id='".$row["id"]."'>🗑️</a>";
                 
                             if (!empty($row["file_dokumen"])) {
@@ -674,30 +676,30 @@ if ($total_pages > 1):
         <div id="tambahModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Tambah Data Surat Masuk</h2>
+                <h2>Tambah Data Surat Keluar</h2>
                 <span class="close">&times;</span>
             </div>
             <form id="tambahForm" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="tambah">
                 <div class="form-group">
-                    <label for="nomor">Nomor:</label>
-                    <input type="text" id="nomor" name="nomor" required>
+                    <label for="kode_kelas">Kode Kelas:</label>
+                    <input type="text" id="kode_kelas" name="kode_kelas">
                 </div>
                 <div class="form-group">
-                    <label for="tanggal">Tanggal:</label>
+                    <label for="tanggal">Tanggal Surat:</label>
                     <input type="date" id="tanggal" name="tanggal" required>
                 </div>
                 <div class="form-group">
-                    <label for="dari">Dari:</label>
-                    <input type="text" id="dari" name="dari" required>
+                    <label for="no_urut">No. Urut:</label>
+                    <input type="text" id="no_urut" name="no_urut">
                 </div>
                 <div class="form-group">
-                    <label for="isi_ringkas">Isi Ringkas:</label>
-                    <textarea id="isi_ringkas" name="isi_ringkas" required></textarea>
+                    <label for="perihal">Perihal:</label>
+                    <textarea id="perihal" name="perihal"></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="tanggal_arsip">Tanggal Arsip:</label>
-                    <input type="date" id="tanggal_arsip" name="tanggal_arsip" required>
+                    <label for="tujuan_surat">Tujuan Surat:</label>
+                    <input type="text" id="tujuan_surat" name="tujuan_surat">
                 </div>
                 <div class="form-group">
     <label for="tahun">Tahun:</label>
@@ -715,31 +717,31 @@ if ($total_pages > 1):
     <div id="editModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Edit Data Surat Masuk</h2>
+                <h2>Edit Data Surat Keluar</h2>
                 <span class="close">&times;</span>
             </div>
             <form id="editForm" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="edit">
                 <input type="hidden" id="edit_id" name="id">
                 <div class="form-group">
-                    <label for="edit_nomor">Nomor:</label>
-                    <input type="text" id="edit_nomor" name="nomor" required>
+                    <label for="edit_kode_kelas">Kode Kelas:</label>
+                    <input type="text" id="edit_kode_kelas" name="kode_kelas" required>
                 </div>
                 <div class="form-group">
-                    <label for="edit_tanggal">Tanggal:</label>
+                    <label for="edit_tanggal">Tanggal Surat:</label>
                     <input type="date" id="edit_tanggal" name="tanggal" required>
                 </div>
                 <div class="form-group">
-                    <label for="edit_dari">Dari:</label>
-                    <input type="text" id="edit_dari" name="dari" required>
+                    <label for="edit_no_urut">No. Urut:</label>
+                    <input type="text" id="edit_no_urut" name="no_urut" required>
                 </div>
                 <div class="form-group">
-                    <label for="edit_isi_ringkas">Isi Ringkas:</label>
-                    <textarea id="edit_isi_ringkas" name="isi_ringkas" required></textarea>
+                    <label for="edit_perihal">Perihal:</label>
+                    <textarea id="edit_perihal" name="perihal" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="edit_tanggal_arsip">Tanggal Arsip:</label>
-                    <input type="date" id="edit_tanggal_arsip" name="tanggal_arsip" required>
+                    <label for="edit_tujuan_surat">Tujuan Surat:</label>
+                    <input type="text" id="edit_tujuan_surat" name="tujuan_surat" required>
                 </div>
                 <div class="form-group">
     <label for="edit_tahun">Tahun:</label>
@@ -807,7 +809,7 @@ if ($total_pages > 1):
     e.preventDefault();
     var formData = new FormData(this);
     $.ajax({
-        url: 'surat_masuk_page.php',
+        url: 'surat_keluar_page.php',
         type: 'post',
         data: formData,
         contentType: false,
@@ -821,20 +823,20 @@ if ($total_pages > 1):
 
     $(".edit-btn").click(function() {
     var id = $(this).data('id');
-    var nomor = $(this).data('nomor');
+    var kode_kelas = $(this).data('kode_kelas');
     var tanggal = $(this).data('tanggal');
-    var dari = $(this).data('dari');
-    var isi_ringkas = $(this).data('isi_ringkas');
-    var tanggal_arsip = $(this).data('tanggal_arsip');
+    var no_urut = $(this).data('no_urut');
+    var perihal = $(this).data('perihal');
+    var tujuan_surat = $(this).data('tujuan_surat');
     var tahun = $(this).data('tahun');
     var file_dokumen = $(this).data('file_dokumen');
 
     $("#edit_id").val(id);
-    $("#edit_nomor").val(nomor);
+    $("#edit_kode_kelas").val(kode_kelas);
     $("#edit_tanggal").val(tanggal);
-    $("#edit_dari").val(dari);
-    $("#edit_isi_ringkas").val(isi_ringkas);
-    $("#edit_tanggal_arsip").val(tanggal_arsip);
+    $("#edit_no_urut").val(no_urut);
+    $("#edit_perihal").val(perihal);
+    $("#edit_tujuan_surat").val(tujuan_surat);
     $("#edit_tahun").val(tahun);
     
     // Menampilkan informasi file yang sudah ada
@@ -853,15 +855,15 @@ if ($total_pages > 1):
         $(".delete-btn").click(function() {
             if(confirm('Apakah Anda yakin ingin menghapus data ini?')) {
                 var id = $(this).data('id');
-                $.get('surat_masuk_page.php', {hapus: id}, function() {
+                $.get('surat_keluar_page.php', {hapus: id}, function() {
                     location.reload();
                 });
             }
         });
     });
 
-    // Handling preview button
-    $(".preview-btn").click(function(e) {
+        // Handling preview button
+        $(".preview-btn").click(function(e) {
     e.preventDefault();
     var file = $(this).data('file');
     var fileType = file.split('.').pop().toLowerCase();
@@ -878,19 +880,19 @@ if ($total_pages > 1):
     $("#previewModal").css("display", "block");
 });
 
-    // Close modal when clicking on <span> (x)
+    // Tutup modal ketika klik (x)
     $(".close").click(function() {
         $("#previewModal").css("display", "none");
     });
 
-    // Close modal when clicking outside of it
+    // Tutup modal ketika klik diluar modal
     $(window).click(function(e) {
         if ($(e.target).is('#previewModal')) {
             $("#previewModal").css("display", "none");
         }
     });
 
-    // Handling download button in preview modal
+    // Proses tombol download pada modal preview
     $("#downloadBtn").click(function() {
         var file = $(this).data('file');
         window.location.href = "download.php?file=" + file;

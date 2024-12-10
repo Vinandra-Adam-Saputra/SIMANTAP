@@ -5,7 +5,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'umum') {
     exit();
 }
 
-// Database connection
+// Koneksi Database
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -32,6 +32,10 @@ $sql_surat = "SELECT COUNT(*) as total_surat FROM data_surat_masuk";
 $result_surat = $conn->query($sql_surat);
 $total_surat = $result_surat->fetch_assoc()['total_surat'];
 
+// Mengambil jumlah data Surat Keluar
+$sql_surat_keluar = "SELECT COUNT(*) as total_surat_keluar FROM data_surat_keluar";
+$result_surat_keluar = $conn->query($sql_surat_keluar);
+$total_surat_keluar = $result_surat_keluar->fetch_assoc()['total_surat_keluar'];
 
 $conn->close();
 ?>
@@ -166,7 +170,7 @@ $conn->close();
             max-height: 120px;
         }
 
-        .icon-dashboard, .icon-spt, .icon-nota-dinas, .icon-surat-masuk {
+        .icon-dashboard, .icon-spt, .icon-nota-dinas, .icon-surat-masuk, .icon-surat-keluar {
             width: 40px;
             height: 40px;
             background-size: cover;
@@ -187,6 +191,10 @@ $conn->close();
 
         .icon-surat-masuk {
             background-image: url('assets/img/inbox.png');
+        }
+
+        .icon-surat-keluar {
+            background-image: url('assets/img/letter.png');
         }
 
         .icon-logout {
@@ -287,9 +295,7 @@ $conn->close();
         .Btn:active {
         transform: translate(2px ,2px);
         }
-
-
-    </style>
+</style>
 </head>
 <body>
     <aside class="sidebar">
@@ -301,6 +307,7 @@ $conn->close();
                     <li><a href="spt_page.php"><i class="icon-spt"></i> Data SPT</a></li>
                     <li><a href="nota_dinas_page.php"><i class="icon-nota-dinas"></i> Data Nota Dinas</a></li>
                     <li><a href="surat_masuk_page.php"><i class="icon-surat-masuk"></i> Surat Masuk</a></li>
+                    <li><a href="surat_keluar_page.php"><i class="icon-surat-keluar"></i> Surat Keluar</a></li>
                 </ul>
             </nav>
         </div>
@@ -336,8 +343,8 @@ $conn->close();
         <canvas id="chartSuratMasuk"></canvas>
     </div>
     <div class="card">
-        <h4>Saran & Evaluasi</h4>
-        <p>Suara pengguna adalah hal terpenting dalam mengembangkan Aplikasi</p>
+        <h4>Jumlah Data Surat Keluar</h4>
+        <canvas id="chartSuratKeluar"></canvas>
     </div>
 </div>
 
@@ -393,6 +400,8 @@ function createBarChart(elementId, label, data, backgroundColor, borderColor) {
 createBarChart('chartSPT', 'Data SPT', <?php echo $total_spt; ?>, 'rgba(255, 168, 0, 0.8)', 'rgba(255, 168, 0, 1)');
 createBarChart('chartNotaDinas', 'Data Nota Dinas', <?php echo $total_nota; ?>, 'rgba(8, 123, 221, 0.8)', 'rgba(8, 123, 221, 1)');
 createBarChart('chartSuratMasuk', 'Data Surat Masuk', <?php echo $total_surat; ?>, 'rgba(255, 99, 71, 1)', 'rgba(255, 99, 71, 1)');
+createBarChart('chartSuratKeluar', 'Data Surat Keluar', <?php echo $total_surat_keluar; ?>, 'rgba(75, 192, 192, 0.8)', 'rgba(75, 192, 192, 1)'); 
+
 
 
     function logout() {

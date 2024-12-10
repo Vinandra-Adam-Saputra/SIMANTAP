@@ -4,7 +4,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'pmd') {
     header("Location: login_page.php");
     exit();
 }
-// Database connection
+
+// Koneksi Database
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -45,9 +46,9 @@ foreach ($tables as $table) {
     }
 }
 
-
 $conn->close();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -327,8 +328,8 @@ $conn->close();
         <div class="text">Logout</div>
     </button>
 </form>
-
     </aside>
+ 
     
     <main class="main-content">
         <header>
@@ -367,7 +368,7 @@ $conn->close();
 </div>
 
 
-    <script>
+<script>
     function createBarChart(elementId, label, data, backgroundColor, borderColor) {
         var ctx = document.getElementById(elementId).getContext('2d');
         new Chart(ctx, {

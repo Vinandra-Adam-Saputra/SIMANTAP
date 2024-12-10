@@ -5,7 +5,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Database connection
+// Koneksi Database
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -16,6 +16,8 @@ $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
+
+define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5 MB dalam bytes
 
 
 if(isset($_GET['id']) && isset($_GET['action']) && $_GET['action'] == 'get') {
@@ -28,6 +30,40 @@ if(isset($_GET['id']) && isset($_GET['action']) && $_GET['action'] == 'get') {
         echo json_encode(['error' => 'Data not found']);
     }
     exit;
+}
+
+// Proses upload file
+$file_dokumen = '';
+if(isset($_FILES['file_dokumen']) && $_FILES['file_dokumen']['error'] == 0) {
+    $target_dir = "uploads/";
+    $file_dokumen = basename($_FILES["file_dokumen"]["name"]);
+    $target_file = $target_dir . $file_dokumen;
+    $fileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+    
+    // Cek apakah file sudah ada
+    if (file_exists($target_file)) {
+        $file_dokumen = time() . '_' . $file_dokumen;
+        $target_file = $target_dir . $file_dokumen;
+    }
+
+    // Cek ukuran file
+    if ($_FILES['file_dokumen']['size'] > MAX_FILE_SIZE) {
+        echo "File size is too large. Maximum 5 MB allowed.";
+        exit;
+    }
+    
+    // Validasi tipe file
+    $allowed_types = array('jpg', 'jpeg', 'png', 'gif', 'pdf');
+    if(!in_array($fileType, $allowed_types)) {
+        echo "Sorry, only JPG, JPEG, PNG, GIF, and PDF files are allowed.";
+        exit;
+    }
+    
+    if (move_uploaded_file($_FILES["file_dokumen"]["tmp_name"], $target_file)) {
+        echo "The file ". $file_dokumen . " has been uploaded.";
+    } else {
+        echo "Sorry, there was an error uploading your file.";
+    }
 }
 
 // Fungsi untuk menambah atau mengedit data
@@ -56,10 +92,14 @@ if(isset($_POST['action'])) {
         $row = $result->fetch_assoc();
         $new_no = $row['max_no'] + 1;
 
-        $sql = "INSERT INTO kube (no, kecamatan, kelurahan_desa, nama_kube, nama_produk, pkb, nib, pirt, halal, izin_lainnya, fb, ig, digital_marketing_lainnya, wilayah_pemasaran, ket) VALUES ($new_no, '$kecamatan', '$kelurahan_desa', '$nama_kube', '$nama_produk', $pkb, $nib, $pirt, $halal, $izin_lainnya, $fb, $ig, $digital_marketing_lainnya, '$wilayah_pemasaran', '$ket')";
-    } elseif($action == 'edit') {
-        $sql = "UPDATE kube SET kecamatan='$kecamatan', kelurahan_desa='$kelurahan_desa', nama_kube='$nama_kube', nama_produk='$nama_produk', pkb=$pkb, nib=$nib, pirt=$pirt, halal=$halal, izin_lainnya=$izin_lainnya, fb=$fb, ig=$ig, digital_marketing_lainnya=$digital_marketing_lainnya, wilayah_pemasaran='$wilayah_pemasaran', ket='$ket' WHERE id=$id";
-    }
+        $sql = "INSERT INTO kube (no, kecamatan, kelurahan_desa, nama_kube, nama_produk, pkb, nib, pirt, halal, izin_lainnya, fb, ig, digital_marketing_lainnya, wilayah_pemasaran, ket, file_dokumen) VALUES ($new_no, '$kecamatan', '$kelurahan_desa', '$nama_kube', '$nama_produk', $pkb, $nib, $pirt, $halal, $izin_lainnya, $fb, $ig, $digital_marketing_lainnya, '$wilayah_pemasaran', '$ket', '$file_dokumen')";    
+        } elseif($action == 'edit') {
+            if ($file_dokumen) {
+                $sql = "UPDATE kube SET kecamatan='$kecamatan', kelurahan_desa='$kelurahan_desa', nama_kube='$nama_kube', nama_produk='$nama_produk', pkb=$pkb, nib=$nib, pirt=$pirt, halal=$halal, izin_lainnya=$izin_lainnya, fb=$fb, ig=$ig, digital_marketing_lainnya=$digital_marketing_lainnya, wilayah_pemasaran='$wilayah_pemasaran', ket='$ket', file_dokumen='$file_dokumen' WHERE id=$id";
+            } else {
+                $sql = "UPDATE kube SET kecamatan='$kecamatan', kelurahan_desa='$kelurahan_desa', nama_kube='$nama_kube', nama_produk='$nama_produk', pkb=$pkb, nib=$nib, pirt=$pirt, halal=$halal, izin_lainnya=$izin_lainnya, fb=$fb, ig=$ig, digital_marketing_lainnya=$digital_marketing_lainnya, wilayah_pemasaran='$wilayah_pemasaran', ket='$ket' WHERE id=$id";
+            }
+        }
 
     if($conn->query($sql) === TRUE) {
         echo "success";
@@ -74,7 +114,12 @@ if(isset($_POST['action'])) {
 if(isset($_GET['hapus'])) {
     $id = $conn->real_escape_string($_GET['hapus']);
     $sql = "DELETE FROM kube WHERE id=$id";
-    $conn->query($sql);
+    if($conn->query($sql) === TRUE) {
+        echo "success";
+    } else {
+        echo "Error: " . $conn->error;
+    }
+    exit;
 }
 
 // Fungsi pencarian dan pagination
@@ -163,25 +208,25 @@ $result = $conn->query($sql);
         }
 
         .logout-btn {
-    background-color: #FFA800;
-    color: #FFFFFF;
-    border: none;
-    padding: 10px 15px;
-    font-size: 16px;
-    font-weight: bold;
-    border-radius: 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: auto;
-}
+            background-color: #FFA800;
+            color: #FFFFFF;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: auto;
+        }
 
-.logout-btn .icon-logout {
-    margin-right: 10px;
-    width: 20px;
-    height: 20px;
-}
+        .logout-btn .icon-logout {
+            margin-right: 10px;
+            width: 20px;
+            height: 20px;
+        }
         .main-content {
             flex-grow: 1;
             padding: 40px;
@@ -441,73 +486,97 @@ $result = $conn->query($sql);
         }
 
         .Btn {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        width: 45px;
-        height: 45px;
-        border: none;
-        border-radius: 50%;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-        transition-duration: .3s;
-        box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.199);
-        background-color: rgb(255, 65, 65);
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            width: 45px;
+            height: 45px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition-duration: .3s;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.199);
+            background-color: rgb(255, 65, 65);
         }
 
         /* plus sign */
         .sign {
-        width: 100%;
-        transition-duration: .3s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+            width: 100%;
+            transition-duration: .3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .sign svg {
-        width: 17px;
+           width: 17px;
         }
 
         .sign svg path {
-        fill: white;
+            fill: white;
         }
         /* text */
         .text {
-        position: absolute;
-        right: 0%;
-        width: 0%;
-        opacity: 0;
-        color: white;
-        font-size: 1.2em;
-        font-weight: 600;
-        transition-duration: .3s;
+            position: absolute;
+            right: 0%;
+            width: 0%;
+            opacity: 0;
+            color: white;
+            font-size: 1.2em;
+            font-weight: 600;
+            transition-duration: .3s;
         }
         /* hover effect on button width */
         .Btn:hover {
-        width: 125px;
-        border-radius: 40px;
-        transition-duration: .3s;
+            width: 125px;
+            border-radius: 40px;
+            transition-duration: .3s;
         }
 
         .Btn:hover .sign {
-        width: 30%;
-        transition-duration: .3s;
-        padding-left: 10px;
+            width: 30%;
+            transition-duration: .3s;
+            padding-left: 10px;
         }
         /* hover effect button's text */
         .Btn:hover .text {
-        opacity: 1;
-        width: 70%;
-        transition-duration: .3s;
-        padding-right: 5px;
+            opacity: 1;
+            width: 70%;
+            transition-duration: .3s;
+            padding-right: 5px;
         }
         /* button click effect*/
         .Btn:active {
-        transform: translate(2px ,2px);
+           transform: translate(2px ,2px);
         }
 
+        .modal-preview {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
 
+        .modal-content-preview {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+        }
+
+        #downloadBtn {
+            display: block;
+            margin: 20px auto 0;
+        }
     </style>
     </head>
 <body>
@@ -556,64 +625,62 @@ $result = $conn->query($sql);
         </div>
 
         <div class="table-container">
-            <table>
-            <thead>
-    <tr>
-        <th class="freeze-column" rowspan="2">No</th>
-        <th rowspan="2">Kecamatan</th>
-        <th rowspan="2">Kelurahan/Desa</th>
-        <th rowspan="2">Nama KUBE</th>
-        <th rowspan="2">Nama Produk</th>
-        <th colspan="5">Perizinan</th>
-        <th colspan="3">Digital Marketing</th>
-        <th rowspan="2">Wilayah Pemasaran</th>
-        <th rowspan="2">Keterangan</th>
-        <th rowspan="2">Opsi</th>
-    </tr>
-    <tr>
-        <th>PKP</th>
-        <th>NIB</th>
-        <th>PIRT</th>
-        <th>Halal</th>
-        <th>Izin Lainnya</th>
-        <th>FB</th>
-        <th>IG</th>
-        <th>Lainnya</th>
-    </tr>
-</thead>
-
-                <tbody>
-                    <?php
-                    if ($result->num_rows > 0) {
-                        while($row = $result->fetch_assoc()) {
-                            echo "<tr>
-                                    <td class='freeze-column'>".$row["no"]."</td>
-                                    <td>".$row["kecamatan"]."</td>
-                                    <td>".$row["kelurahan_desa"]."</td>
-                                    <td>".$row["nama_kube"]."</td>
-                                    <td>".$row["nama_produk"]."</td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["pkb"] ? 'checked' : '')." disabled></td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["nib"] ? 'checked' : '')." disabled></td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["pirt"] ? 'checked' : '')." disabled></td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["halal"] ? 'checked' : '')." disabled></td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["izin_lainnya"] ? 'checked' : '')." disabled></td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["fb"] ? 'checked' : '')." disabled></td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["ig"] ? 'checked' : '')." disabled></td>
-                                    <td class='checkbox-cell'><input type='checkbox' ".($row["digital_marketing_lainnya"] ? 'checked' : '')." disabled></td>
-                                    <td>".$row["wilayah_pemasaran"]."</td>
-                                    <td>".$row["ket"]."</td>
-                                    <td class='opsi'>
-                                        <a href='#' class='edit-btn' data-id='".$row["id"]."'>✏️</a>
-                                        <a href='#' class='delete-btn' data-id='".$row["id"]."'>🗑️</a>
-                                    </td>
-                                </tr>";
+        <table>
+    <thead>
+        <tr>
+            <th>No</th>
+            <th>Kecamatan</th>
+            <th>Kelurahan/Desa</th>
+            <th>Nama KUBE</th>
+            <th>Nama Produk</th>
+            <th>PKP</th>
+            <th>NIB</th>
+            <th>PIRT</th>
+            <th>Halal</th>
+            <th>Izin Lainnya</th>
+            <th>FB</th>
+            <th>IG</th>
+            <th>Lainnya</th>
+            <th>Wilayah Pemasaran</th>
+            <th>Keterangan</th>
+            <th>Opsi</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php
+        if ($result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                echo "<tr>
+                        <td>".$row["no"]."</td>
+                        <td>".$row["kecamatan"]."</td>
+                        <td>".$row["kelurahan_desa"]."</td>
+                        <td>".$row["nama_kube"]."</td>
+                        <td>".$row["nama_produk"]."</td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["pkb"] ? 'checked' : '')." disabled></td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["nib"] ? 'checked' : '')." disabled></td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["pirt"] ? 'checked' : '')." disabled></td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["halal"] ? 'checked' : '')." disabled></td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["izin_lainnya"] ? 'checked' : '')." disabled></td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["fb"] ? 'checked' : '')." disabled></td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["ig"] ? 'checked' : '')." disabled></td>
+                        <td class='checkbox-cell'><input type='checkbox' ".($row["digital_marketing_lainnya"] ? 'checked' : '')." disabled></td>
+                        <td>".$row["wilayah_pemasaran"]."</td>
+                        <td>".$row["ket"]."</td>
+                        <td class='opsi'>
+                            <a href='#' class='edit-btn' data-id='".$row["id"]."'>✏️</a>
+                            <a href='#' class='delete-btn' data-id='".$row["id"]."'>🗑️</a>";
+                        if (!empty($row["file_dokumen"])) {
+                            echo "<a href='#' class='preview-btn' data-file='".$row["file_dokumen"]."'>👁️</a>";
                         }
-                    } else {
-                        echo "<tr><td colspan='16'>Tidak ada data yang ditemukan</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
+                echo "</td>
+                    </tr>";
+            }
+        } else {
+            echo "<tr><td colspan='16'>Tidak ada data yang ditemukan</td></tr>";
+        }
+        ?>
+    </tbody>
+</table>
         </div>
         <div class="pagination">
             <?php
@@ -667,7 +734,7 @@ if ($total_pages > 1):
             <h2 id="modalTitle">Tambah Data KUBE</h2>
             <span class="close">&times;</span>
         </div>
-        <form id="dataForm">
+    <form id="dataForm" enctype="multipart/form-data">
     <input type="hidden" id="action" name="action" value="tambah">
     <input type="hidden" id="id" name="id">
     <div class="form-group">
@@ -688,7 +755,7 @@ if ($total_pages > 1):
     </div>
     <div class="checkbox-group">
         <h3>Perizinan:</h3>
-        <label><input type="checkbox" id="pkb" name="pkb"> PKB</label>
+        <label><input type="checkbox" id="pkb" name="pkb"> PKP</label>
         <label><input type="checkbox" id="nib" name="nib"> NIB</label>
         <label><input type="checkbox" id="pirt" name="pirt"> PIRT</label>
         <label><input type="checkbox" id="halal" name="halal"> Halal</label>
@@ -708,10 +775,24 @@ if ($total_pages > 1):
         <label for="ket">Keterangan:</label>
         <textarea id="ket" name="ket"></textarea>
     </div>
+    <div class="form-group">
+        <label for="file_dokumen">Upload Dokumen (JPG, JPEG, PNG, GIF, PDF):</label>
+        <input type="file" id="file_dokumen" name="file_dokumen" accept=".jpg,.jpeg,.png,.gif,.pdf" onchange="validateFileSize(this)">
+    </div>
     <button type="submit" class="btn-submit">Simpan Data</button>
     </form>
 </div>
 </div>
+
+<div id="previewModal" class="modal-preview">
+    <div class="modal-content-preview">
+        <span class="close">&times;</span>
+        <h2>Preview Dokumen</h2>
+        <div id="previewContent"></div>
+        <button id="downloadBtn" class="btn-submit">Download</button>
+    </div>
+</div>
+
 
 <div id="logoutModal" class="modal-logout">
     <div class="modal-content-logout">
@@ -724,30 +805,89 @@ if ($total_pages > 1):
 
     <script>
 $(document).ready(function() {
-    var dataModal = document.getElementById("dataModal");
-    var tambahBtn = document.querySelector(".tambah-data-btn");
-    var spans = document.getElementsByClassName("close");
+    var dataModal = $("#dataModal");
+    var tambahBtn = $(".tambah-data-btn");
+    var closeBtn = $(".close");
 
-    tambahBtn.onclick = function() {
-        $("#modalTitle").text("Tambah Data KUBE");
-        $("#action").val("tambah");
-        $("#id").val("");
+    // Fungsi untuk membuka modal
+    function openModal(title, action, id = '') {
+        $("#modalTitle").text(title);
+        $("#action").val(action);
+        $("#id").val(id);
+        dataModal.show();
+    }
+
+    // Event untuk tombol Tambah Data
+    tambahBtn.click(function(e) {
+        e.preventDefault();
+        openModal("Tambah Data KUBE", "tambah");
         $("#dataForm")[0].reset();
-        dataModal.style.display = "block";
-    }
+    });
 
-    for (let span of spans) {
-        span.onclick = function() {
-            dataModal.style.display = "none";
+    // Event untuk tombol Edit
+    $(document).on('click', '.edit-btn', function(e) {
+        e.preventDefault();
+        var id = $(this).data('id');
+        openModal("Edit Data KUBE", "edit", id);
+        
+        // Ambil data dari server
+        $.ajax({
+            url: 'kube_page.php',
+            type: 'get',
+            data: {id: id, action: 'get'},
+            dataType: 'json',
+            success: function(data) {
+                $("#kecamatan").val(data.kecamatan);
+                $("#kelurahan_desa").val(data.kelurahan_desa);
+                $("#nama_kube").val(data.nama_kube);
+                $("#nama_produk").val(data.nama_produk);
+                $("#pkb").prop('checked', data.pkb == 1);
+                $("#nib").prop('checked', data.nib == 1);
+                $("#pirt").prop('checked', data.pirt == 1);
+                $("#halal").prop('checked', data.halal == 1);
+                $("#izin_lainnya").prop('checked', data.izin_lainnya == 1);
+                $("#fb").prop('checked', data.fb == 1);
+                $("#ig").prop('checked', data.ig == 1);
+                $("#digital_marketing_lainnya").prop('checked', data.digital_marketing_lainnya == 1);
+                $("#wilayah_pemasaran").val(data.wilayah_pemasaran);
+                $("#ket").val(data.ket);
+            },
+            error: function(xhr, status, error) {
+                alert("Error: " + error);
+            }
+        });
+    });
+
+    // Event untuk tombol Hapus
+    $(document).on('click', '.delete-btn', function(e) {
+        e.preventDefault();
+        if(confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+            var id = $(this).data('id');
+            $.ajax({
+                url: 'kube_page.php',
+                type: 'GET',
+                data: {hapus: id},
+                success: function(response) {
+                    if(response.trim() === "success") {
+                        alert("Data berhasil dihapus.");
+                        location.reload();
+                    } else {
+                        alert("Error: " + response);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert("Terjadi kesalahan: " + error);
+                }
+            });
         }
-    }
+    });
 
-    window.onclick = function(event) {
-        if (event.target == dataModal) {
-            dataModal.style.display = "none";
-        }
-    }
+    // Event untuk menutup modal
+    closeBtn.click(function() {
+        dataModal.hide();
+    });
 
+    // Event untuk submit form
     $("#dataForm").submit(function(e) {
         e.preventDefault();
         $.ajax({
@@ -755,60 +895,63 @@ $(document).ready(function() {
             type: 'post',
             data: $(this).serialize(),
             success: function(response) {
-                if(response === "success") {
+                if(response.trim() === "success") {
+                    alert("Data berhasil disimpan.");
                     location.reload();
                 } else {
                     alert("Error: " + response);
                 }
+            },
+            error: function(xhr, status, error) {
+                alert("Terjadi kesalahan: " + error);
             }
         });
     });
 
-    $(".edit-btn").click(function() {
-    var id = $(this).data('id');
-    $("#modalTitle").text("Edit Data KUBE");
-    $("#action").val("edit");
-    $("#id").val(id);
-    
-    // Ambil data dari server
-    $.ajax({
-        url: 'kube_page.php',
-        type: 'get',
-        data: {id: id, action: 'get'},
-        dataType: 'json',
-        success: function(data) {
-            $("#kecamatan").val(data.kecamatan);
-            $("#kelurahan_desa").val(data.kelurahan_desa);
-            $("#nama_kube").val(data.nama_kube);
-            $("#nama_produk").val(data.nama_produk);
-            $("#pkb").prop('checked', data.pkb == 1);
-            $("#nib").prop('checked', data.nib == 1);
-            $("#pirt").prop('checked', data.pirt == 1);
-            $("#halal").prop('checked', data.halal == 1);
-            $("#izin_lainnya").prop('checked', data.izin_lainnya == 1);
-            $("#fb").prop('checked', data.fb == 1);
-            $("#ig").prop('checked', data.ig == 1);
-            $("#digital_marketing_lainnya").prop('checked', data.digital_marketing_lainnya == 1);
-            $("#wilayah_pemasaran").val(data.wilayah_pemasaran);
-            $("#ket").val(data.ket);
-            
-            dataModal.style.display = "block";
+    // Menutup modal jika user mengklik di luar modal
+    $(window).click(function(event) {
+        if (event.target == dataModal[0]) {
+            dataModal.hide();
         }
     });
 });
 
-        $(".delete-btn").click(function() {
-            if(confirm('Apakah Anda yakin ingin menghapus data ini?')) {
-                var id = $(this).data('id');
-                $.get('kube_page.php', {hapus: id}, function(response) {
-                    if(response === "success") {
-                        location.reload();
-                    } else {
-                        alert("Error: " + response);
-                    }
-                });
-            }
-        });
+// Handling preview button
+$(document).on('click', '.preview-btn', function(e) {
+        e.preventDefault();
+        var file = $(this).data('file');
+        var fileType = file.split('.').pop().toLowerCase();
+        var previewContent = "";
+
+        if (fileType === 'pdf') {
+            previewContent = "<embed src='uploads/" + file + "' type='application/pdf' width='100%' height='600px' />";
+        } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileType)) {
+            previewContent = "<img src='uploads/" + file + "' alt='Preview Dokumen' style='max-width: 100%; height: auto;'>";
+        } else {
+            previewContent = "<p>Tipe file tidak didukung untuk preview.</p>";
+        }
+
+        $("#previewContent").html(previewContent);
+        $("#downloadBtn").data("file", file);
+        $("#previewModal").css("display", "block");
+    });
+
+    // Close modal when clicking on <span> (x)
+    $(".close").click(function() {
+        $("#previewModal").css("display", "none");
+    });
+
+    // Close modal when clicking outside of it
+    $(window).click(function(e) {
+        if ($(e.target).is('#previewModal')) {
+            $("#previewModal").css("display", "none");
+        }
+    });
+
+    // Handling download button in preview modal
+    $("#downloadBtn").click(function() {
+        var file = $(this).data('file');
+        window.location.href = "download.php?file=" + file;
     });
 
     function logout() {

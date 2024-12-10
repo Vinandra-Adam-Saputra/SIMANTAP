@@ -1,11 +1,11 @@
 <?php
 session_start();
 
-// Database connection
+// Koneksi Database
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "pmd_bintim";
+$dbname = "simantap";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 
@@ -13,7 +13,7 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// Function to get table structure
+// Fungsi mendapatkan struktur tabel
 function getTableStructure($conn, $table) {
     $columns = [];
     $result = $conn->query("DESCRIBE $table");
@@ -23,7 +23,7 @@ function getTableStructure($conn, $table) {
     return $columns;
 }
 
-// Function to get available years
+// Fungsi mendapatkan tahun tersedia
 function getAvailableYears($conn) {
     $years = [];
     $result = $conn->query("SHOW TABLES LIKE 'pembangunan_%'");
@@ -43,18 +43,18 @@ function getAvailableYears($conn) {
     return $years;
 }
 
-// Get valid years
+// Mendapatkan tahun yang valid
 $validYears = getAvailableYears($conn);
 $year = isset($_GET['year']) && in_array($_GET['year'], $validYears) ? $_GET['year'] : (empty($validYears) ? date('Y') : $validYears[0]);
 
-// Determine the table name
+// Menentukan nama tabel
 if ($year == '2018' || $year == '2019') {
     $table = 'pembangunan_2018_2019';
 } else {
     $table = 'pembangunan_' . $year;
 }
 
-// Initialize variables
+// Inisialiasasi variabel
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
@@ -75,7 +75,7 @@ function ensureColumnsExist($conn, $table, $columns) {
 }
 
 
-// Get table structure
+// Mendapatkan struktur tabel
 $tableStructure = getTableStructure($conn, $table);
 
 // Handle POST requests
@@ -159,7 +159,7 @@ if (isset($_GET['hapus']) && isset($_GET['year'])) {
     }
 }
 
-// Create search query
+// Fungsi pencarian
 $search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
 $columns = getTableStructure($conn, $table);
 $searchConditions = [];
@@ -174,7 +174,7 @@ $searchQuery = !empty($searchConditions) ? implode(' OR ', $searchConditions) : 
 $sql = "SELECT * FROM $table WHERE $searchQuery";
 $countSql = "SELECT COUNT(*) as total FROM $table WHERE $searchQuery";
 
-// Count total data for pagination
+// Hitung total data untuk pagination
 $totalResult = $conn->query($countSql);
 if ($totalResult === false) {
     die("Error executing query: " . $conn->error);

@@ -4,7 +4,8 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: login_page.php");
     exit();
 }
-// Database connection
+
+// Koneksi Database
 $servername = "localhost";
 $username = "root";
 $password = "";
@@ -16,17 +17,57 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5 MB dalam bytes
+
 if(isset($_POST['action'])) {
     $tanggal = $conn->real_escape_string($_POST['tanggal']);
     $keterangan = $conn->real_escape_string($_POST['keterangan']);
     $bidang = $conn->real_escape_string($_POST['bidang']);
     $tahun = intval($_POST['tahun']);
 
+    // Proses upload file
+    $file_dokumen = '';
+    if(isset($_FILES['file_dokumen']) && $_FILES['file_dokumen']['error'] == 0) {
+        $target_dir = "uploads/";
+        $file_dokumen = basename($_FILES["file_dokumen"]["name"]);
+        $target_file = $target_dir . $file_dokumen;
+        $fileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+        
+        // Cek apakah file sudah ada
+        if (file_exists($target_file)) {
+            $file_dokumen = time() . '_' . $file_dokumen;
+            $target_file = $target_dir . $file_dokumen;
+        }
+
+        // Cek ukuran file
+        if ($_FILES['file_dokumen']['size'] > MAX_FILE_SIZE) {
+            echo "Ukuran file terlalu besar. Maksimum 5 MB.";
+            exit;
+        }
+        
+        // Validasi tipe file
+        $allowed_types = array('jpg', 'jpeg', 'png', 'gif', 'pdf');
+        if(!in_array($fileType, $allowed_types)) {
+            echo "Maaf, hanya file JPG, JPEG, PNG, GIF, dan PDF yang diizinkan.";
+            exit;
+        }
+        
+        if (move_uploaded_file($_FILES["file_dokumen"]["tmp_name"], $target_file)) {
+            echo "The file ". $file_dokumen . " has been uploaded.";
+        } else {
+            echo "Maaf, terjadi kesalahan saat mengupload file.";
+        }
+    }
+
     if($_POST['action'] == 'tambah') {
-        $sql = "INSERT INTO data_nota_dinas (tanggal, keterangan, bidang, tahun) VALUES ('$tanggal', '$keterangan', '$bidang', $tahun)";
+        $sql = "INSERT INTO data_nota_dinas (tanggal, keterangan, bidang, tahun, file_dokumen) VALUES ('$tanggal', '$keterangan', '$bidang', $tahun, '$file_dokumen')";
     } elseif($_POST['action'] == 'edit') {
         $id = $conn->real_escape_string($_POST['id']);
-        $sql = "UPDATE data_nota_dinas SET tanggal='$tanggal', keterangan='$keterangan', bidang='$bidang', tahun=$tahun WHERE id=$id";
+        if ($file_dokumen) {
+            $sql = "UPDATE data_nota_dinas SET tanggal='$tanggal', keterangan='$keterangan', bidang='$bidang', tahun=$tahun, file_dokumen='$file_dokumen' WHERE id=$id";
+        } else {
+            $sql = "UPDATE data_nota_dinas SET tanggal='$tanggal', keterangan='$keterangan', bidang='$bidang', tahun=$tahun WHERE id=$id";
+        }
     }
 
     if($conn->query($sql) === TRUE) {
@@ -36,7 +77,6 @@ if(isset($_POST['action'])) {
     }
     exit;
 }
-
 
 if(isset($_GET['hapus'])) {
     $id = $conn->real_escape_string($_GET['hapus']);
@@ -225,7 +265,7 @@ $result = $conn->query($sql);
             text-align: center;
         }
 
-        .icon-dashboard, .icon-spt, .icon-nota-dinas, .icon-surat-masuk {
+        .icon-dashboard, .icon-spt, .icon-nota-dinas, .icon-surat-masuk, .icon-surat-keluar {
             width: 40px;
             height: 40px;
             background-size: cover;
@@ -248,6 +288,9 @@ $result = $conn->query($sql);
             background-image: url('assets/img/inbox.png');
         }
 
+        .icon-surat-keluar {
+            background-image: url('assets/img/letter.png');
+        }
 
         .icon-logout {
             background-image: url('assets/img/inner_plugin_iframe_x2.svg');
@@ -443,6 +486,32 @@ $result = $conn->query($sql);
         transform: translate(2px ,2px);
         }
 
+        .modal-preview {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content-preview {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+        }
+
+        #downloadBtn {
+            display: block;
+            margin: 20px auto 0;
+        }
+
     </style>
 </head>
 <body>
@@ -455,6 +524,7 @@ $result = $conn->query($sql);
                     <li><a href="spt_page.php"><i class="icon-spt"></i> Data SPT</a></li>
                     <li class="active"><a href="nota_dinas_page.php"><i class="icon-nota-dinas"></i> Data Nota Dinas</a></li>
                     <li><a href="surat_masuk_page.php"><i class="icon-surat-masuk"></i> Surat Masuk</a></li>
+                    <li><a href="surat_keluar_page.php"><i class="icon-surat-keluar"></i> Surat Keluar</a></li>
                 </ul>
             </nav>
         </div>
@@ -510,27 +580,33 @@ $result = $conn->query($sql);
     </tr>
 </thead>
 <tbody>
-    <?php
-    if ($result->num_rows > 0) {
-        $no = $start + 1;
-        while($row = $result->fetch_assoc()) {
-            echo "<tr>
-                    <td>".$no."</td>
-                    <td>".$row["tanggal"]."</td>
-                    <td>".$row["keterangan"]."</td>
-                    <td>".$row["bidang"]."</td>
-                    <td class='opsi'>
-                        <a href='#' class='edit-btn' data-id='".$row["id"]."' data-tanggal='".$row["tanggal"]."' data-keterangan='".$row["keterangan"]."' data-bidang='".$row["bidang"]."'>✏️</a>
-                        <a href='#' class='delete-btn' data-id='".$row["id"]."'>🗑️</a>
-                    </td>
-                </tr>";
-            $no++;
-        }
-    } else {
-        echo "<tr><td colspan='5'>Tidak ada data yang ditemukan</td></tr>";
-    }
-    ?>
-</tbody>
+<?php
+            if ($result->num_rows > 0) {
+                $no = $start + 1;
+                while($row = $result->fetch_assoc()) {
+                    echo "<tr>
+                            <td>".$no."</td>
+                            <td>".$row["tanggal"]."</td>
+                            <td>".$row["keterangan"]."</td>
+                            <td>".$row["bidang"]."</td>";
+                         
+                    echo "</td>
+                            <td class='opsi'>
+                                <a href='#' class='edit-btn' data-id='".$row["id"]."' data-tanggal='".$row["tanggal"]."' data-keterangan='".$row["keterangan"]."' data-bidang='".$row["bidang"]."' data-file_dokumen='".$row["file_dokumen"]."'>✏️</a>
+                                <a href='#' class='delete-btn' data-id='".$row["id"]."'>🗑️</a>";
+
+                           if (!empty($row["file_dokumen"])) {
+                                echo "<a href='#' class='preview-btn' data-file='".$row["file_dokumen"]."'>👁️</a>";
+                            }
+                
+                    echo "</td></tr>";
+                        $no++;
+                    }
+                } else {
+                    echo "<tr><td colspan='7'>Tidak ada data yang ditemukan</td></tr>";
+                }
+                ?>
+            </tbody>
 
         </table>
 
@@ -587,7 +663,7 @@ function changeLimit(limit) {
                 <h2>Tambah Data Nota Dinas</h2>
                 <span class="close">&times;</span>
             </div>
-            <form id="tambahForm">
+            <form id="tambahForm" enctype="multipart/form-data">
     <input type="hidden" name="action" value="tambah">
     <div class="form-group">
         <label for="tanggal">Tanggal:</label>
@@ -613,6 +689,10 @@ function changeLimit(limit) {
         ?>
     </select>
 </div>
+        <div class="form-group">
+            <label for="file_dokumen">Upload Dokumen (JPG, JPEG, PNG, GIF, PDF):</label>
+            <input type="file" id="file_dokumen" name="file_dokumen" accept=".jpg,.jpeg,.png,.gif,.pdf" onchange="validateFileSize(this)">
+        </div>
 
     <button type="submit" class="btn-submit">Tambah Data</button>
 </form>
@@ -626,7 +706,7 @@ function changeLimit(limit) {
                 <h2>Edit Data Nota Dinas</h2>
                 <span class="close">&times;</span>
             </div>
-            <form id="editForm">
+            <form id="editForm" enctype="multipart/form-data">
                 <input type="hidden" name="action" value="edit">
                 <input type="hidden" id="edit_id" name="id">
                 <div class="form-group">
@@ -653,9 +733,24 @@ function changeLimit(limit) {
         ?>
     </select>
 </div>
+                <div class="form-group">
+                    <label for="edit_file_dokumen">Upload Dokumen:</label>
+                    <div id="existing_file" style="display:none;"></div>
+                    <input type="file" id="edit_file_dokumen" name="file_dokumen" onchange="validateFileSize(this)">
+                </div>
 
                 <button type="submit" class="btn-submit">Update Data</button>
             </form>
+        </div>
+    </div>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal-preview">
+        <div class="modal-content-preview">
+            <span class="close">&times;</span>
+            <h2>Preview Dokumen</h2>
+            <div id="previewContent"></div>
+            <button id="downloadBtn" class="btn-submit">Download</button>
         </div>
     </div>
 
@@ -669,6 +764,16 @@ function changeLimit(limit) {
 </div>
 
     <script>
+
+function validateFileSize(input) {
+        if (input.files && input.files[0]) {
+            if (input.files[0].size > <?php echo MAX_FILE_SIZE; ?>) {
+                alert("File size is too large. Maximum 5 MB.");
+                input.value = "";
+            }
+        }
+    }
+
     $(document).ready(function() {
         var tambahModal = document.getElementById("tambahModal");
         var editModal = document.getElementById("editModal");
@@ -695,43 +800,40 @@ function changeLimit(limit) {
             }
         }
 
-        $("#tambahForm").submit(function(e) {
+        $("#tambahForm, #editForm").submit(function(e) {
             e.preventDefault();
+            var formData = new FormData(this);
             $.ajax({
                 url: 'nota_dinas_page.php',
                 type: 'post',
-                data: $(this).serialize(),
+                data: formData,
+                contentType: false,
+                processData: false,
                 success: function() {
                     location.reload();
                 }
             });
         });
 
-        $("#editForm").submit(function(e) {
-            e.preventDefault();
-            $.ajax({
-                url: 'nota_dinas_page.php',
-                type: 'post',
-                data: $(this).serialize(),
-                success: function() {
-                    location.reload();
-                }
-            });
-        });
-
-        $(".edit-btn").click(function() {
+         $(".edit-btn").click(function() {
             var id = $(this).data('id');
             var tanggal = $(this).data('tanggal');
             var keterangan = $(this).data('keterangan');
             var bidang = $(this).data('bidang');
-            var tahun = new Date(tanggal).getFullYear();
-
+            var file_dokumen = $(this).data('file_dokumen');
 
             $("#edit_id").val(id);
             $("#edit_tanggal").val(tanggal);
             $("#edit_keterangan").val(keterangan);
             $("#edit_bidang").val(bidang);
-            $("#edit_tahun").val(tahun);
+            
+            // Display information about the existing file
+            if (file_dokumen) {
+                $("#existing_file").text("Current file: " + file_dokumen);
+                $("#existing_file").show();
+            } else {
+                $("#existing_file").hide();
+            }
 
             editModal.style.display = "block";
         });
@@ -745,6 +847,42 @@ function changeLimit(limit) {
             }
         });
     });
+
+            // Handle file preview
+            $(".preview-btn").click(function(e) {
+            e.preventDefault();
+            var file = $(this).data('file');
+            var fileType = file.split('.').pop().toLowerCase();
+            var previewContent = "";
+
+            if (fileType === 'pdf') {
+                previewContent = "<embed src='uploads/" + file + "' type='application/pdf' width='100%' height='600px' />";
+            } else {
+                previewContent = "<img src='uploads/" + file + "' alt='Document Preview' style='max-width: 100%; height: auto;'>";
+            }
+
+            $("#previewContent").html(previewContent);
+            $("#downloadBtn").data("file", file);
+            $("#previewModal").css("display", "block");
+        });
+
+        // Tutup modal ketika klik (x)
+        $(".close").click(function() {
+            $("#previewModal").css("display", "none");
+        });
+
+        // Tutup modal ketika klik diluar modal
+        $(window).click(function(e) {
+            if ($(e.target).is('#previewModal')) {
+                $("#previewModal").css("display", "none");
+            }
+        });
+
+        // Proses tombol download pada modal preview
+        $("#downloadBtn").click(function() {
+            var file = $(this).data('file');
+            window.location.href = "download.php?file=" + file;
+        });
 
     function logout() {
     // Kirim permintaan POST ke logout.php
